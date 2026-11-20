@@ -9,6 +9,7 @@ services:
     cpus: 0.5
     volumes:
       - core_data:/pb_data
+      - ./core-service/pb_hooks:/pb_hooks:ro
     ports:
       - "8094:8090"     # dashboard: http://IP_STB:8094/_/
 
