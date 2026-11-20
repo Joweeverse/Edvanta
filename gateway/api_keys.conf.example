@@ -1,0 +1,3 @@
+# Salin menjadi api_keys.conf (berkas itu TIDAK di-commit). Satu baris per kelompok:
+"ganti-dengan-kunci-acak-1" 1;   # contoh: kelompok A
+"ganti-dengan-kunci-acak-2" 1;   # contoh: kelompok B
