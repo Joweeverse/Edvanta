@@ -1,0 +1,975 @@
+openapi: 3.0.3
+info:
+  title: Edvanta Classroom Service
+  version: 1.0.0
+  description: 'Layanan kelas digital: kelas, materi, kuis (dinilai otomatis), pendaftaran, dan diskusi.
+    Kelompok lain memakai header X-API-Key; pengguna aplikasi memakai Authorization: Bearer <token>.'
+servers:
+- url: https://edvanta.stei.site/api
+tags:
+- name: Umum
+- name: Autentikasi
+- name: classes
+- name: lessons
+- name: quizzes
+- name: enrollments
+- name: attempts
+- name: discussions
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: &id001
+          type: string
+        email: *id001
+        name: *id001
+        role:
+          type: string
+          enum:
+          - student
+          - mentor
+    RegisterInput:
+      type: object
+      required:
+      - email
+      - password
+      - passwordConfirm
+      - role
+      properties:
+        email: *id001
+        password:
+          type: string
+          minLength: 8
+        passwordConfirm: *id001
+        name: *id001
+        role:
+          type: string
+          enum:
+          - student
+          - mentor
+    LoginInput:
+      type: object
+      required:
+      - identity
+      - password
+      properties:
+        identity:
+          type: string
+          description: Email
+        password: *id001
+    AuthResponse:
+      type: object
+      properties:
+        token: *id001
+        record:
+          $ref: '#/components/schemas/User'
+    Class:
+      type: object
+      properties:
+        id: *id001
+        created: &id002
+          type: string
+          format: date-time
+        updated: &id003
+          type: string
+          format: date-time
+        title: *id001
+        description: *id001
+        category: *id001
+        mentor: *id001
+    ClassInput:
+      type: object
+      required:
+      - title
+      - mentor
+      properties:
+        title: *id001
+        description: *id001
+        category: *id001
+        mentor:
+          type: string
+          description: ID pengguna mentor (harus sama dengan pengguna yang login)
+    Lesson:
+      type: object
+      properties:
+        id: *id001
+        created: *id002
+        updated: *id003
+        class: *id001
+        title: *id001
+        order: &id004
+          type: number
+        content: *id001
+        video_url:
+          type: string
+          format: uri
+        pdf: *id001
+    LessonInput:
+      type: object
+      required:
+      - class
+      - title
+      - order
+      properties:
+        class: *id001
+        title: *id001
+        order: *id004
+        content: *id001
+        video_url:
+          type: string
+          format: uri
+    Quiz:
+      type: object
+      properties:
+        id: *id001
+        created: *id002
+        updated: *id003
+        lesson: *id001
+        title: *id001
+        passing_score: *id004
+        questions:
+          type: array
+          description: Kunci jawaban (answer) hanya tampil untuk mentor
+          items:
+            type: object
+            properties:
+              q: *id001
+              options:
+                type: array
+                items: *id001
+              answer:
+                type: integer
+    QuizInput:
+      type: object
+      required:
+      - lesson
+      - title
+      - passing_score
+      - questions
+      properties:
+        lesson: *id001
+        title: *id001
+        passing_score:
+          type: number
+          minimum: 0
+          maximum: 100
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              q: *id001
+              options:
+                type: array
+                items: *id001
+              answer:
+                type: integer
+    Enrollment:
+      type: object
+      properties:
+        id: *id001
+        created: *id002
+        updated: *id003
+        user: *id001
+        class: *id001
+        completed_lessons:
+          type: array
+          items: *id001
+        progress: *id004
+    EnrollmentInput:
+      type: object
+      required:
+      - user
+      - class
+      properties:
+        user:
+          type: string
+          description: ID siswa (harus sama dengan pengguna yang login)
+        class: *id001
+    Attempt:
+      type: object
+      properties:
+        id: *id001
+        created: *id002
+        updated: *id003
+        user: *id001
+        quiz: *id001
+        score: *id004
+        passed:
+          type: boolean
+    AttemptInput:
+      type: object
+      properties: {}
+    Discussion:
+      type: object
+      properties:
+        id: *id001
+        created: *id002
+        updated: *id003
+        lesson: *id001
+        user: *id001
+        message: *id001
+        parent: *id001
+        is_private:
+          type: boolean
+        recipient: *id001
+    DiscussionInput:
+      type: object
+      required:
+      - lesson
+      - user
+      - message
+      properties:
+        lesson: *id001
+        user: *id001
+        message: *id001
+        parent: *id001
+        is_private:
+          type: boolean
+        recipient: *id001
+    SubmitResult:
+      type: object
+      properties:
+        score: *id004
+        passed:
+          type: boolean
+        correct:
+          type: integer
+        total:
+          type: integer
+        progress: *id004
+paths:
+  /health:
+    get:
+      tags:
+      - Umum
+      summary: Cek kesehatan gateway
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gateway:
+                    type: string
+                    example: ok
+  /auth/records:
+    post:
+      tags:
+      - Autentikasi
+      summary: Daftar akun baru (student/mentor)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+      responses:
+        '200':
+          description: Akun dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validasi gagal
+  /auth/auth-with-password:
+    post:
+      tags:
+      - Autentikasi
+      summary: Login dengan email dan password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Token dan data pengguna
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Email atau password salah
+  /auth/auth-refresh:
+    post:
+      tags:
+      - Autentikasi
+      summary: Perbarui token
+      security: &id006
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Token baru
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401': &id005
+          description: API key atau Bearer token tidak ada/tidak valid
+  /classes:
+    get:
+      tags:
+      - classes
+      summary: Daftar classes
+      description: Hanya mentor (role=mentor) yang boleh membuat; hanya mentor pemilik yang boleh mengubah/menghapus.
+      security: &id007
+      - ApiKey: []
+      - BearerAuth: []
+      parameters: &id010
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: perPage
+        in: query
+        schema:
+          type: integer
+          default: 30
+      - name: filter
+        in: query
+        description: Filter PocketBase, mis. title~'web'
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: Mis. -created
+        schema:
+          type: string
+      - name: expand
+        in: query
+        description: Relasi yang diperluas, mis. mentor
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Daftar (dengan paginasi)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Class'
+        '401': *id005
+    post:
+      tags:
+      - classes
+      summary: Buat Class
+      description: Hanya mentor (role=mentor) yang boleh membuat; hanya mentor pemilik yang boleh mengubah/menghapus.
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassInput'
+      responses:
+        '200':
+          description: Record dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Class'
+        '400':
+          description: Validasi gagal
+        '401': *id005
+        '403': &id008
+          description: Tidak berhak (aturan akses)
+  /classes/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - classes
+      summary: Detail Class
+      security: *id007
+      parameters:
+      - name: expand
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Satu record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Class'
+        '401': *id005
+        '404': &id009
+          description: Tidak ditemukan
+    patch:
+      tags:
+      - classes
+      summary: Ubah Class
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassInput'
+      responses:
+        '200':
+          description: Record diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Class'
+        '401': *id005
+        '403': *id008
+        '404': *id009
+    delete:
+      tags:
+      - classes
+      summary: Hapus Class
+      security: *id006
+      responses:
+        '204':
+          description: Dihapus
+        '401': *id005
+        '403': *id008
+        '404': *id009
+  /lessons:
+    get:
+      tags:
+      - lessons
+      summary: Daftar lessons
+      description: Hanya mentor yang boleh membuat; hanya mentor pemilik kelas yang boleh mengubah/menghapus.
+      security: *id007
+      parameters: *id010
+      responses:
+        '200':
+          description: Daftar (dengan paginasi)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lesson'
+        '401': *id005
+    post:
+      tags:
+      - lessons
+      summary: Buat Lesson
+      description: Hanya mentor yang boleh membuat; hanya mentor pemilik kelas yang boleh mengubah/menghapus.
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonInput'
+      responses:
+        '200':
+          description: Record dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '400':
+          description: Validasi gagal
+        '401': *id005
+        '403': *id008
+  /lessons/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - lessons
+      summary: Detail Lesson
+      security: *id007
+      parameters:
+      - name: expand
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Satu record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '401': *id005
+        '404': *id009
+    patch:
+      tags:
+      - lessons
+      summary: Ubah Lesson
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonInput'
+      responses:
+        '200':
+          description: Record diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '401': *id005
+        '403': *id008
+        '404': *id009
+    delete:
+      tags:
+      - lessons
+      summary: Hapus Lesson
+      security: *id006
+      responses:
+        '204':
+          description: Dihapus
+        '401': *id005
+        '403': *id008
+        '404': *id009
+  /quizzes:
+    get:
+      tags:
+      - quizzes
+      summary: Daftar quizzes
+      description: Kunci jawaban (answer) disembunyikan dari siswa.
+      security: *id007
+      parameters: *id010
+      responses:
+        '200':
+          description: Daftar (dengan paginasi)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Quiz'
+        '401': *id005
+    post:
+      tags:
+      - quizzes
+      summary: Buat Quiz
+      description: Kunci jawaban (answer) disembunyikan dari siswa.
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizInput'
+      responses:
+        '200':
+          description: Record dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+        '400':
+          description: Validasi gagal
+        '401': *id005
+        '403': *id008
+  /quizzes/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - quizzes
+      summary: Detail Quiz
+      security: *id007
+      parameters:
+      - name: expand
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Satu record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+        '401': *id005
+        '404': *id009
+    patch:
+      tags:
+      - quizzes
+      summary: Ubah Quiz
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizInput'
+      responses:
+        '200':
+          description: Record diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quiz'
+        '401': *id005
+        '403': *id008
+        '404': *id009
+    delete:
+      tags:
+      - quizzes
+      summary: Hapus Quiz
+      security: *id006
+      responses:
+        '204':
+          description: Dihapus
+        '401': *id005
+        '403': *id008
+        '404': *id009
+  /enrollments:
+    get:
+      tags:
+      - enrollments
+      summary: Daftar enrollments
+      description: Siswa hanya melihat miliknya; mentor kelas melihat peserta kelasnya.
+      security: *id007
+      parameters: *id010
+      responses:
+        '200':
+          description: Daftar (dengan paginasi)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Enrollment'
+        '401': *id005
+    post:
+      tags:
+      - enrollments
+      summary: Buat Enrollment
+      description: Siswa hanya melihat miliknya; mentor kelas melihat peserta kelasnya.
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentInput'
+      responses:
+        '200':
+          description: Record dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+        '400':
+          description: Validasi gagal
+        '401': *id005
+        '403': *id008
+  /enrollments/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - enrollments
+      summary: Detail Enrollment
+      security: *id007
+      parameters:
+      - name: expand
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Satu record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+        '401': *id005
+        '404': *id009
+  /attempts:
+    get:
+      tags:
+      - attempts
+      summary: Daftar attempts
+      description: Dibuat otomatis oleh endpoint submit; tidak bisa diubah/dihapus lewat API.
+      security: *id007
+      parameters: *id010
+      responses:
+        '200':
+          description: Daftar (dengan paginasi)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Attempt'
+        '401': *id005
+  /attempts/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - attempts
+      summary: Detail Attempt
+      security: *id007
+      parameters:
+      - name: expand
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Satu record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attempt'
+        '401': *id005
+        '404': *id009
+  /discussions:
+    get:
+      tags:
+      - discussions
+      summary: Daftar discussions
+      description: Pesan privat hanya terlihat pengirim dan penerima.
+      security: *id007
+      parameters: *id010
+      responses:
+        '200':
+          description: Daftar (dengan paginasi)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  page:
+                    type: integer
+                  perPage:
+                    type: integer
+                  totalItems:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Discussion'
+        '401': *id005
+    post:
+      tags:
+      - discussions
+      summary: Buat Discussion
+      description: Pesan privat hanya terlihat pengirim dan penerima.
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionInput'
+      responses:
+        '200':
+          description: Record dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+        '400':
+          description: Validasi gagal
+        '401': *id005
+        '403': *id008
+  /discussions/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - discussions
+      summary: Detail Discussion
+      security: *id007
+      parameters:
+      - name: expand
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Satu record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+        '401': *id005
+        '404': *id009
+    patch:
+      tags:
+      - discussions
+      summary: Ubah Discussion
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscussionInput'
+      responses:
+        '200':
+          description: Record diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discussion'
+        '401': *id005
+        '403': *id008
+        '404': *id009
+    delete:
+      tags:
+      - discussions
+      summary: Hapus Discussion
+      security: *id006
+      responses:
+        '204':
+          description: Dihapus
+        '401': *id005
+        '403': *id008
+        '404': *id009
+  /quizzes/{id}/submit:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      tags:
+      - quizzes
+      summary: Kirim jawaban kuis (dinilai otomatis di server)
+      description: 'Syarat: siswa sudah terdaftar di kelas, dan materi sebelumnya (urutan lebih kecil)
+        sudah selesai. Jika skor >= passing_score, materi ditandai selesai dan progres kelas dihitung
+        ulang.'
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - answers
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: integer
+                  description: Indeks pilihan per soal, urut sesuai field questions
+                  example:
+                  - 0
+                  - 2
+                  - 1
+      responses:
+        '200':
+          description: Hasil penilaian
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitResult'
+        '400':
+          description: answers bukan array
+        '401': *id005
+        '403':
+          description: Belum terdaftar, atau materi sebelumnya belum selesai
+        '404':
+          description: Kuis tidak ditemukan
