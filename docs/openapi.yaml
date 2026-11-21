@@ -26,11 +26,33 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    Certificate:
+      type: object
+      properties:
+        code: &id001
+          type: string
+        student: *id001
+        class_title: *id001
+        mentor: *id001
+        issued_at: *id001
+    ClassStats:
+      type: object
+      properties:
+        class_id: *id001
+        participants:
+          type: integer
+        completed:
+          type: integer
+        average_progress:
+          type: integer
+        lessons:
+          type: integer
+        mentor_points:
+          type: integer
     User:
       type: object
       properties:
-        id: &id001
-          type: string
+        id: *id001
         email: *id001
         name: *id001
         role:
@@ -38,6 +60,11 @@ components:
           enum:
           - student
           - mentor
+        credibility_points:
+          type: integer
+          description: Poin kredibilitas mentor (+1 tiap pendaftaran siswa baru)
+        bio: *id001
+        portfolio_url: *id001
     RegisterInput:
       type: object
       required:
@@ -468,8 +495,10 @@ paths:
       tags:
       - lessons
       summary: Daftar lessons
-      description: Hanya mentor yang boleh membuat; hanya mentor pemilik kelas yang boleh mengubah/menghapus.
-      security: *id007
+      description: Daftar materi (judul, urutan) terlihat oleh semua pengguna yang login. Isi materi (content,
+        video_url, pdf) hanya terlihat oleh mentor pemilik dan siswa terdaftar. Hanya mentor yang boleh
+        membuat; hanya mentor pemilik yang boleh mengubah/menghapus.
+      security: *id006
       parameters: *id010
       responses:
         '200':
@@ -496,7 +525,9 @@ paths:
       tags:
       - lessons
       summary: Buat Lesson
-      description: Hanya mentor yang boleh membuat; hanya mentor pemilik kelas yang boleh mengubah/menghapus.
+      description: Daftar materi (judul, urutan) terlihat oleh semua pengguna yang login. Isi materi (content,
+        video_url, pdf) hanya terlihat oleh mentor pemilik dan siswa terdaftar. Hanya mentor yang boleh
+        membuat; hanya mentor pemilik yang boleh mengubah/menghapus.
       security: *id006
       requestBody:
         required: true
@@ -526,7 +557,7 @@ paths:
       tags:
       - lessons
       summary: Detail Lesson
-      security: *id007
+      security: *id006
       parameters:
       - name: expand
         in: query
@@ -579,7 +610,7 @@ paths:
       - quizzes
       summary: Daftar quizzes
       description: Kunci jawaban (answer) disembunyikan dari siswa.
-      security: *id007
+      security: *id006
       parameters: *id010
       responses:
         '200':
@@ -636,7 +667,7 @@ paths:
       tags:
       - quizzes
       summary: Detail Quiz
-      security: *id007
+      security: *id006
       parameters:
       - name: expand
         in: query
@@ -689,7 +720,7 @@ paths:
       - enrollments
       summary: Daftar enrollments
       description: Siswa hanya melihat miliknya; mentor kelas melihat peserta kelasnya.
-      security: *id007
+      security: *id006
       parameters: *id010
       responses:
         '200':
@@ -746,7 +777,7 @@ paths:
       tags:
       - enrollments
       summary: Detail Enrollment
-      security: *id007
+      security: *id006
       parameters:
       - name: expand
         in: query
@@ -767,7 +798,7 @@ paths:
       - attempts
       summary: Daftar attempts
       description: Dibuat otomatis oleh endpoint submit; tidak bisa diubah/dihapus lewat API.
-      security: *id007
+      security: *id006
       parameters: *id010
       responses:
         '200':
@@ -801,7 +832,7 @@ paths:
       tags:
       - attempts
       summary: Detail Attempt
-      security: *id007
+      security: *id006
       parameters:
       - name: expand
         in: query
@@ -822,7 +853,7 @@ paths:
       - discussions
       summary: Daftar discussions
       description: Pesan privat hanya terlihat pengirim dan penerima.
-      security: *id007
+      security: *id006
       parameters: *id010
       responses:
         '200':
@@ -879,7 +910,7 @@ paths:
       tags:
       - discussions
       summary: Detail Discussion
-      security: *id007
+      security: *id006
       parameters:
       - name: expand
         in: query
@@ -973,3 +1004,53 @@ paths:
           description: Belum terdaftar, atau materi sebelumnya belum selesai
         '404':
           description: Kuis tidak ditemukan
+  /classes/{id}/certificate:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    post:
+      tags:
+      - classes
+      summary: Terbitkan atau ambil sertifikat kelulusan
+      description: Hanya siswa terdaftar. Sertifikat terbit setelah seluruh materi kelas selesai; pemanggilan
+        berikutnya mengembalikan sertifikat yang sama.
+      security: *id006
+      responses:
+        '200':
+          description: Sertifikat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certificate'
+        '400':
+          description: Materi belum selesai semua
+        '401': *id005
+        '403':
+          description: Belum terdaftar di kelas ini
+  /classes/{id}/stats:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - classes
+      summary: Statistik kelas untuk dasbor mentor
+      description: Hanya mentor pemilik kelas.
+      security: *id006
+      responses:
+        '200':
+          description: Statistik
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassStats'
+        '401': *id005
+        '403':
+          description: Bukan mentor pemilik kelas
+        '404': *id009

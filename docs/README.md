@@ -27,7 +27,9 @@ Internet --> Cloudflare Tunnel --> Nginx gateway (port 80) --> core-service (Poc
 | core-service | PocketBase (Docker) | Data dan aturan akses, logika kuis (`pb_hooks`) | 256 MB, 0,5 CPU |
 | tunnel | cloudflared | Akses publik tanpa membuka port | Dikelola di host STB |
 
-Koleksi data: `users` (role: student/mentor), `classes`, `lessons`, `quizzes`, `enrollments`, `attempts`, `discussions`.
+Koleksi data: `users` (role student atau mentor, plus `credibility_points`, `bio`, `portfolio_url`), `classes`, `lessons`, `quizzes`, `enrollments`, `attempts`, `discussions`, `certificates`.
+
+Logika di server (`pb_hooks`): penilaian kuis, penyembunyian kunci jawaban, penyembunyian isi materi dari non-peserta, penambahan poin kredibilitas mentor, penerbitan sertifikat, dan statistik kelas.
 
 # 3. Cara mendapatkan akses
 
@@ -35,12 +37,12 @@ Ada dua jenis pemanggil:
 
 | Pemanggil | Autentikasi | Cara mendapat |
 |---|---|---|
-| Kelompok lain (server ke server) | Header `X-API-Key: <kunci>` | Minta satu kunci per kelompok kepada kami; kunci bisa dicabut kapan saja |
+| Kelompok lain (server ke server) | Header `X-API-Key: <kunci>`, hanya untuk membaca `/classes` | Minta satu kunci per kelompok kepada kami; kunci bisa dicabut kapan saja |
 | Pengguna aplikasi | Header `Authorization: Bearer <token>` | Login lewat `POST /auth/auth-with-password` |
 
 Kami juga menyediakan satu akun uji mentor dan satu akun uji siswa untuk kelompok yang meminta (diberikan lewat pesan langsung, tidak dicantumkan di dokumen ini).
 
-Tanpa X-API-Key atau Bearer token, endpoint data mengembalikan `401`. `GET /health` dan endpoint `/auth/...` terbuka dengan batas laju.
+Endpoint selain `/classes` memerlukan Bearer token. Tanpa X-API-Key atau Bearer token, endpoint data mengembalikan `401`. `GET /health` dan endpoint `/auth/...` terbuka dengan batas laju.
 
 # 4. Daftar endpoint
 
@@ -53,13 +55,15 @@ Tanpa X-API-Key atau Bearer token, endpoint data mengembalikan `401`. `GET /heal
 | GET | `/classes`, `/classes/{id}` | API key atau Bearer | Daftar dan detail kelas |
 | POST | `/classes` | Bearer (mentor) | Buat kelas |
 | PATCH, DELETE | `/classes/{id}` | Bearer (mentor pemilik) | Ubah, hapus kelas |
-| GET | `/lessons`, `/lessons/{id}` | API key atau Bearer | Materi kelas |
+| GET | `/lessons`, `/lessons/{id}` | Bearer | Daftar materi untuk semua pengguna login; isi materi hanya untuk mentor pemilik dan siswa terdaftar |
 | POST, PATCH, DELETE | `/lessons`, `/lessons/{id}` | Bearer (mentor) | Kelola materi |
-| GET | `/quizzes`, `/quizzes/{id}` | API key atau Bearer | Kuis (kunci jawaban disembunyikan dari non-mentor) |
+| GET | `/quizzes`, `/quizzes/{id}` | Bearer | Kuis (kunci jawaban disembunyikan dari non-mentor) |
 | POST, PATCH, DELETE | `/quizzes`, `/quizzes/{id}` | Bearer (mentor) | Kelola kuis |
 | POST | `/quizzes/{id}/submit` | Bearer (siswa terdaftar) | Kirim jawaban, dinilai otomatis |
 | GET, POST, DELETE | `/enrollments` | Bearer | Daftar ke kelas, lihat progres |
 | GET | `/attempts` | Bearer | Riwayat percobaan kuis |
+| POST | `/classes/{id}/certificate` | Bearer (siswa terdaftar) | Terbitkan atau ambil sertifikat setelah semua materi selesai |
+| GET | `/classes/{id}/stats` | Bearer (mentor pemilik) | Jumlah peserta, jumlah lulus, rata-rata progres, poin mentor |
 | GET, POST, PATCH, DELETE | `/discussions` | Bearer | Diskusi publik dan pesan privat |
 
 Parameter umum untuk daftar: `page`, `perPage`, `filter`, `sort`, `expand`, `fields` (format PocketBase). Respons daftar berbentuk `{ page, perPage, totalItems, totalPages, items: [...] }`.
@@ -69,7 +73,10 @@ Aturan domain:
 1. Hanya mentor pembuat yang dapat mengubah kelasnya.
 2. Materi dibuka berurutan: siswa baru dapat mengirim kuis suatu materi setelah materi sebelumnya selesai.
 3. Hasil kuis bersifat pribadi: hanya siswa yang bersangkutan dan mentor kelas yang melihatnya.
-4. Progres kelas (`progress`, 0 sampai 100) dihitung dari materi yang sudah lulus kuis.
+4. Progres kelas (`progress`, 0 sampai 100) dihitung dari materi yang sudah lulus kuis, dan hanya dapat berubah lewat penilaian kuis.
+5. Isi materi hanya terlihat oleh mentor pemilik kelas dan siswa terdaftar; mentor lain hanya melihat kurikulum.
+6. Setiap pendaftaran siswa baru menambah satu poin kredibilitas pada mentor kelas.
+7. Sertifikat hanya terbit setelah seluruh materi kelas selesai, dan setiap siswa hanya mendapat satu sertifikat per kelas.
 
 # 5. Contoh request
 
@@ -106,6 +113,16 @@ curl -X POST https://edvanta.stei.site/api/quizzes/ID_KUIS/submit \
   -d '{"answers":[0,2,1]}'
 ```
 
+Ambil sertifikat dan statistik kelas:
+
+```
+curl -X POST https://edvanta.stei.site/api/classes/ID_KELAS/certificate \
+  -H "Authorization: Bearer TOKEN_SISWA"
+
+curl https://edvanta.stei.site/api/classes/ID_KELAS/stats \
+  -H "Authorization: Bearer TOKEN_MENTOR"
+```
+
 Contoh respons submit:
 
 ```
@@ -129,3 +146,28 @@ docker compose exec core-service /usr/local/bin/pocketbase superuser upsert EMAI
 ```
 
 Berkas `.env` dan `gateway/api_keys.conf` tidak disimpan di Git.
+
+# 7. Aplikasi mobile
+
+Aplikasi Edvanta (React Native, Expo) memakai layanan ini sebagai backend.
+
+**Navigasi.** Stack utama berisi alur masuk (Login, Daftar) sebelum login. Setelah login muncul tab bawah dengan lima layar: Kelas, Favorit, Kelas Saya, Jelajah, dan Profil. Dari tab Kelas, pengguna membuka Detail Kelas, lalu Materi, lalu Kuis, lewat navigasi stack.
+
+| Layar | Fungsi | Endpoint yang dipanggil |
+|---|---|---|
+| Login | Masuk dengan email dan password (divalidasi) | `POST /auth/auth-with-password` |
+| Daftar | Buat akun siswa (nama, email, password, konfirmasi) | `POST /auth/records` |
+| Kelas | Daftar kelas dengan pencarian, dan penanda favorit | `GET /classes` |
+| Detail Kelas | Daftar materi, pendaftaran, progres | `GET /lessons`, `GET /enrollments`, `POST /enrollments` |
+| Materi | Isi materi dan tombol kuis | `GET /quizzes` |
+| Kuis | Jawab pertanyaan, hasil dinilai server | `POST /quizzes/{id}/submit` |
+| Kelas Saya | Kelas yang diikuti beserta progres | `GET /enrollments` |
+| Jelajah | Data dari layanan kelompok lain | API kelompok lain |
+| Favorit | Kelas yang ditandai pengguna, disimpan di perangkat per akun | tidak ada |
+| Profil | Data akun dan keluar | tidak ada |
+
+**Login.** Token dari login disimpan di penyimpanan perangkat (AsyncStorage) dan dikirim sebagai header `Authorization: Bearer` di setiap request. Saat aplikasi dibuka lagi, sesi dipulihkan otomatis. Tombol Keluar menghapus token.
+
+**ApiService.js.** Semua request lewat satu berkas yang menangani batas waktu 15 detik, pesan error yang jelas, dan header autentikasi. Layar Kelas, Detail Kelas, Kelas Saya, dan Jelajah menampilkan tiga kondisi: memuat, gagal (dengan tombol coba lagi), dan kosong. Layar Jelajah memanggil layanan kelompok lain dengan header `X-API-Key`; kegagalan satu layanan tidak menghentikan yang lain.
+
+**Pengujian.** Jest menguji validasi form dan ApiService (login, header Bearer, penanganan error, pemetaan data kelompok lain, submit kuis).

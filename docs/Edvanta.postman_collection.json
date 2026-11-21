@@ -195,8 +195,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
@@ -207,6 +207,52 @@
               "path": [
                 "classes",
                 "ID"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sertifikat kelas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes/ID_KELAS/certificate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "ID_KELAS",
+                "certificate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Statistik kelas (mentor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/classes/ID_KELAS/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "classes",
+                "ID_KELAS",
+                "stats"
               ]
             }
           }
@@ -251,27 +297,6 @@
       "name": "lessons",
       "item": [
         {
-          "name": "List lessons (API key)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/lessons",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "lessons"
-              ]
-            }
-          }
-        },
-        {
           "name": "List lessons (Bearer)",
           "request": {
             "method": "GET",
@@ -298,8 +323,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
@@ -354,27 +379,6 @@
       "name": "quizzes",
       "item": [
         {
-          "name": "List quizzes (API key)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/quizzes",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "quizzes"
-              ]
-            }
-          }
-        },
-        {
           "name": "List quizzes (Bearer)",
           "request": {
             "method": "GET",
@@ -401,8 +405,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
@@ -493,27 +497,6 @@
       "name": "enrollments",
       "item": [
         {
-          "name": "List enrollments (API key)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/enrollments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "enrollments"
-              ]
-            }
-          }
-        },
-        {
           "name": "List enrollments (Bearer)",
           "request": {
             "method": "GET",
@@ -540,8 +523,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
@@ -596,27 +579,6 @@
       "name": "attempts",
       "item": [
         {
-          "name": "List attempts (API key)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/attempts",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "attempts"
-              ]
-            }
-          }
-        },
-        {
           "name": "List attempts (Bearer)",
           "request": {
             "method": "GET",
@@ -643,8 +605,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
@@ -664,27 +626,6 @@
     {
       "name": "discussions",
       "item": [
-        {
-          "name": "List discussions (API key)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/discussions",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "discussions"
-              ]
-            }
-          }
-        },
         {
           "name": "List discussions (Bearer)",
           "request": {
@@ -712,8 +653,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{apiKey}}"
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "url": {
