@@ -51,6 +51,8 @@ Endpoint selain `/classes` memerlukan Bearer token. Tanpa X-API-Key atau Bearer 
 | GET | `/health` | Terbuka | Cek gateway |
 | GET | `/files/classes/{id}/{nama}` | Terbuka (GET saja) | Gambar template sertifikat kelas |
 | POST | `/auth/records` | Terbuka | Daftar akun (role student atau mentor) |
+| GET | `/auth/records/{id}` | Bearer | Profil publik pengguna: nama, peran, bio, portofolio, poin mentor (email orang lain tidak terlihat) |
+| PATCH | `/auth/records/{id}` | Bearer (pemilik akun) | Ubah nama, bio, tautan portofolio |
 | POST | `/auth/auth-with-password` | Terbuka | Login, mengembalikan `token` |
 | POST | `/auth/auth-refresh` | Bearer | Perbarui token |
 | GET | `/classes`, `/classes/{id}` | API key atau Bearer | Daftar dan detail kelas |
@@ -152,7 +154,7 @@ Berkas `.env` dan `gateway/api_keys.conf` tidak disimpan di Git.
 
 Aplikasi Edvanta (React Native, Expo) memakai layanan ini sebagai backend. Tampilannya bergaya batik dan kopi (latar krem, warna soga, aksen indigo, judul serif).
 
-**Navigasi.** Sebelum login, stack berisi Login dan Daftar (memilih peran Siswa atau Mentor). Setelah login muncul tab bawah dengan lima layar: Kelas, Favorit, Kelas Saya (siswa) atau Kelas Diampu (mentor), Jelajah, dan Profil. Dari tab, pengguna membuka layar lain lewat navigasi stack: Detail Kelas, Materi, Kuis, Diskusi, serta layar mentor (Buat Kelas, Kelola Kelas, Tambah Materi, Buat Kuis) dan Edit Profil.
+**Navigasi.** Sebelum login, stack berisi Login dan Daftar (memilih peran Siswa atau Mentor). Setelah login muncul tab bawah dengan lima layar: Kelas, Favorit, Kelas Saya (siswa) atau Kelas Diampu (mentor), Jelajah, dan Profil. Dari tab, pengguna membuka layar lain lewat navigasi stack: Detail Kelas, Materi, Kuis, Diskusi, serta layar mentor (Buat Kelas, Kelola Kelas, Tambah Materi, Buat Kuis), Profil Pengguna, dan Edit Profil.
 
 | Layar | Peran | Fungsi | Endpoint yang dipanggil |
 |---|---|---|---|
@@ -171,9 +173,10 @@ Aplikasi Edvanta (React Native, Expo) memakai layanan ini sebagai backend. Tampi
 | Tambah Materi | Mentor | Materi teks dan tautan YouTube | `POST /lessons` |
 | Buat Kuis | Mentor | Soal pilihan ganda, kunci jawaban, nilai minimum | `POST /quizzes` |
 | Jelajah | Semua | Data dari layanan kelompok lain | API kelompok lain |
-| Profil, Edit Profil | Semua | Data akun, poin kredibilitas (mentor), bio, portofolio | `GET`, `PATCH /auth/records/{id}` |
+| Profil, Edit Profil | Semua | Data akun sendiri, poin kredibilitas (mentor), bio, portofolio; ubah profil | `GET`, `PATCH /auth/records/{id}` |
+| Profil Pengguna | Semua | Melihat profil publik pengguna lain (dibuka dari nama mentor di detail kelas atau nama penulis di diskusi) | `GET /auth/records/{id}` |
 
-**Login.** Token dari login disimpan di penyimpanan aman perangkat (SecureStore) dan dikirim sebagai header `Authorization: Bearer` di setiap request. Saat aplikasi dibuka lagi, sesi dipulihkan otomatis. Tombol Keluar menghapus token.
+**Login.** Token dari login disimpan di penyimpanan aman perangkat (SecureStore) dan dikirim sebagai header `Authorization: Bearer` di setiap request. Saat aplikasi dibuka lagi, sesi dipulihkan otomatis. Tombol Keluar menghapus token. Profil pengguna lain hanya menampilkan nama, peran, bio, tautan portofolio, dan poin kredibilitas mentor; email tidak ditampilkan.
 
 **ApiService.js.** Semua request lewat satu berkas yang menangani batas waktu 15 detik, pesan error yang jelas, dan header autentikasi. Layar daftar menampilkan tiga kondisi: memuat, gagal (dengan tombol coba lagi), dan kosong. Layar Jelajah memanggil layanan kelompok lain dengan header `X-API-Key`; kegagalan satu layanan tidak menghentikan yang lain.
 

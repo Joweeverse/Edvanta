@@ -1093,3 +1093,58 @@ paths:
                 type: string
                 format: binary
         '404': *id009
+  /auth/records/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - Autentikasi
+      summary: Lihat profil pengguna
+      description: 'Semua pengguna yang login dapat melihat profil pengguna lain. Yang terlihat: nama,
+        peran, bio, tautan portofolio, dan poin kredibilitas (mentor). Email milik orang lain tidak ditampilkan.'
+      security: *id006
+      responses:
+        '200':
+          description: Profil pengguna
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401': *id005
+        '404': *id009
+    patch:
+      tags:
+      - Autentikasi
+      summary: Ubah profil sendiri
+      description: 'Hanya pemilik akun. Field yang dapat diubah: name, bio, portfolio_url. Peran dan poin
+        kredibilitas tidak dapat diubah lewat API.'
+      security: *id006
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                bio:
+                  type: string
+                portfolio_url:
+                  type: string
+      responses:
+        '200':
+          description: Profil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validasi gagal
+        '401': *id005
+        '403': *id008
+        '404': *id009
