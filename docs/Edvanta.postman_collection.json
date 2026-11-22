@@ -446,7 +446,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"lesson\": \"ID_MATERI\",\n  \"title\": \"Kuis 1\",\n  \"passing_score\": 50,\n  \"questions\": [\n    {\n      \"q\": \"Apa itu REST?\",\n      \"options\": [\n        \"Gaya arsitektur API\",\n        \"Bahasa pemrograman\"\n      ],\n      \"answer\": 0\n    }\n  ]\n}",
+              "raw": "{\n  \"lesson\": \"ID_MATERI\",\n  \"title\": \"Kuis 1\",\n  \"passing_score\": 50,\n  \"questions\": [\n    {\n      \"question\": \"Apa itu REST?\",\n      \"options\": [\n        \"Gaya arsitektur API\",\n        \"Bahasa pemrograman\"\n      ],\n      \"answer\": 0\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

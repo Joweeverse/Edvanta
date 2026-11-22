@@ -29,7 +29,7 @@ Internet --> Cloudflare Tunnel --> Nginx gateway (port 80) --> core-service (Poc
 
 Koleksi data: `users` (role student atau mentor, plus `credibility_points`, `bio`, `portfolio_url`), `classes`, `lessons`, `quizzes`, `enrollments`, `attempts`, `discussions`, `certificates`.
 
-Logika di server (`pb_hooks`): penilaian kuis, penyembunyian kunci jawaban, penyembunyian isi materi dari non-peserta, penambahan poin kredibilitas mentor, penerbitan sertifikat, dan statistik kelas.
+Logika di server (`pb_hooks`): penilaian kuis, penyembunyian kunci jawaban, penyembunyian isi materi dari non-peserta, poin kredibilitas mentor (saat siswa mendaftar dan saat siswa menyelesaikan kelas), penerbitan sertifikat, dan statistik kelas. Kelas dapat membawa gambar template sertifikat (`classes.certificate_template`) yang diunduh dari `/api/files/`.
 
 # 3. Cara mendapatkan akses
 
@@ -49,6 +49,7 @@ Endpoint selain `/classes` memerlukan Bearer token. Tanpa X-API-Key atau Bearer 
 | Metode | Path | Akses | Fungsi |
 |---|---|---|---|
 | GET | `/health` | Terbuka | Cek gateway |
+| GET | `/files/classes/{id}/{nama}` | Terbuka (GET saja) | Gambar template sertifikat kelas |
 | POST | `/auth/records` | Terbuka | Daftar akun (role student atau mentor) |
 | POST | `/auth/auth-with-password` | Terbuka | Login, mengembalikan `token` |
 | POST | `/auth/auth-refresh` | Bearer | Perbarui token |
@@ -75,8 +76,8 @@ Aturan domain:
 3. Hasil kuis bersifat pribadi: hanya siswa yang bersangkutan dan mentor kelas yang melihatnya.
 4. Progres kelas (`progress`, 0 sampai 100) dihitung dari materi yang sudah lulus kuis, dan hanya dapat berubah lewat penilaian kuis.
 5. Isi materi hanya terlihat oleh mentor pemilik kelas dan siswa terdaftar; mentor lain hanya melihat kurikulum.
-6. Setiap pendaftaran siswa baru menambah satu poin kredibilitas pada mentor kelas.
-7. Sertifikat hanya terbit setelah seluruh materi kelas selesai, dan setiap siswa hanya mendapat satu sertifikat per kelas.
+6. Poin kredibilitas mentor bertambah 1 setiap siswa baru mendaftar ke kelasnya, dan bertambah 2 saat progres seorang siswa pertama kali mencapai 100%. Bonus penyelesaian hanya diberikan sekali per siswa dan kelas. Mentor yang mendaftar ke kelasnya sendiri tidak mendapat poin.
+7. Sertifikat hanya terbit setelah seluruh materi kelas selesai, dan setiap siswa hanya mendapat satu sertifikat per kelas. Mentor dapat memakai gambar template sendiri; tanpa itu dipakai template bawaan. Nama siswa tercetak otomatis.
 
 # 5. Contoh request
 
@@ -149,25 +150,33 @@ Berkas `.env` dan `gateway/api_keys.conf` tidak disimpan di Git.
 
 # 7. Aplikasi mobile
 
-Aplikasi Edvanta (React Native, Expo) memakai layanan ini sebagai backend.
+Aplikasi Edvanta (React Native, Expo) memakai layanan ini sebagai backend. Tampilannya bergaya batik dan kopi (latar krem, warna soga, aksen indigo, judul serif).
 
-**Navigasi.** Stack utama berisi alur masuk (Login, Daftar) sebelum login. Setelah login muncul tab bawah dengan lima layar: Kelas, Favorit, Kelas Saya, Jelajah, dan Profil. Dari tab Kelas, pengguna membuka Detail Kelas, lalu Materi, lalu Kuis, lewat navigasi stack.
+**Navigasi.** Sebelum login, stack berisi Login dan Daftar (memilih peran Siswa atau Mentor). Setelah login muncul tab bawah dengan lima layar: Kelas, Favorit, Kelas Saya (siswa) atau Kelas Diampu (mentor), Jelajah, dan Profil. Dari tab, pengguna membuka layar lain lewat navigasi stack: Detail Kelas, Materi, Kuis, Diskusi, serta layar mentor (Buat Kelas, Kelola Kelas, Tambah Materi, Buat Kuis) dan Edit Profil.
 
-| Layar | Fungsi | Endpoint yang dipanggil |
-|---|---|---|
-| Login | Masuk dengan email dan password (divalidasi) | `POST /auth/auth-with-password` |
-| Daftar | Buat akun siswa (nama, email, password, konfirmasi) | `POST /auth/records` |
-| Kelas | Daftar kelas dengan pencarian, dan penanda favorit | `GET /classes` |
-| Detail Kelas | Daftar materi, pendaftaran, progres | `GET /lessons`, `GET /enrollments`, `POST /enrollments` |
-| Materi | Isi materi dan tombol kuis | `GET /quizzes` |
-| Kuis | Jawab pertanyaan, hasil dinilai server | `POST /quizzes/{id}/submit` |
-| Kelas Saya | Kelas yang diikuti beserta progres | `GET /enrollments` |
-| Jelajah | Data dari layanan kelompok lain | API kelompok lain |
-| Favorit | Kelas yang ditandai pengguna, disimpan di perangkat per akun | tidak ada |
-| Profil | Data akun dan keluar | tidak ada |
+| Layar | Peran | Fungsi | Endpoint yang dipanggil |
+|---|---|---|---|
+| Login | Semua | Masuk dengan email dan password (divalidasi) | `POST /auth/auth-with-password` |
+| Daftar | Semua | Buat akun sebagai siswa atau mentor | `POST /auth/records` |
+| Kelas | Semua | Daftar kelas dengan pencarian dan penanda favorit | `GET /classes` |
+| Favorit | Semua | Kelas favorit, disimpan di perangkat per akun | tidak ada |
+| Detail Kelas | Semua | Kurikulum, pendaftaran, progres, unduh sertifikat (PDF) | `GET /lessons`, `GET /enrollments`, `POST /enrollments`, `POST /classes/{id}/certificate`, `GET /files/...` |
+| Materi | Siswa, mentor pemilik | Isi materi dan tautan video | `GET /quizzes` |
+| Kuis | Siswa | Jawab pertanyaan, dinilai server | `POST /quizzes/{id}/submit` |
+| Diskusi | Siswa, mentor | Diskusi publik, pesan privat, balasan privat mentor | `GET /discussions`, `POST /discussions` |
+| Kelas Saya | Siswa | Kelas yang diikuti beserta progres | `GET /enrollments` |
+| Kelas Diampu | Mentor | Kelas milik sendiri | `GET /classes` |
+| Buat Kelas | Mentor | Judul, kategori, deskripsi (divalidasi) | `POST /classes` |
+| Kelola Kelas | Mentor | Statistik, daftar materi, template sertifikat, pratinjau | `GET /classes/{id}/stats`, `GET /lessons`, `GET /quizzes`, `PATCH /classes/{id}` |
+| Tambah Materi | Mentor | Materi teks dan tautan YouTube | `POST /lessons` |
+| Buat Kuis | Mentor | Soal pilihan ganda, kunci jawaban, nilai minimum | `POST /quizzes` |
+| Jelajah | Semua | Data dari layanan kelompok lain | API kelompok lain |
+| Profil, Edit Profil | Semua | Data akun, poin kredibilitas (mentor), bio, portofolio | `GET`, `PATCH /auth/records/{id}` |
 
-**Login.** Token dari login disimpan di penyimpanan perangkat (AsyncStorage) dan dikirim sebagai header `Authorization: Bearer` di setiap request. Saat aplikasi dibuka lagi, sesi dipulihkan otomatis. Tombol Keluar menghapus token.
+**Login.** Token dari login disimpan di penyimpanan aman perangkat (SecureStore) dan dikirim sebagai header `Authorization: Bearer` di setiap request. Saat aplikasi dibuka lagi, sesi dipulihkan otomatis. Tombol Keluar menghapus token.
 
-**ApiService.js.** Semua request lewat satu berkas yang menangani batas waktu 15 detik, pesan error yang jelas, dan header autentikasi. Layar Kelas, Detail Kelas, Kelas Saya, dan Jelajah menampilkan tiga kondisi: memuat, gagal (dengan tombol coba lagi), dan kosong. Layar Jelajah memanggil layanan kelompok lain dengan header `X-API-Key`; kegagalan satu layanan tidak menghentikan yang lain.
+**ApiService.js.** Semua request lewat satu berkas yang menangani batas waktu 15 detik, pesan error yang jelas, dan header autentikasi. Layar daftar menampilkan tiga kondisi: memuat, gagal (dengan tombol coba lagi), dan kosong. Layar Jelajah memanggil layanan kelompok lain dengan header `X-API-Key`; kegagalan satu layanan tidak menghentikan yang lain.
 
-**Pengujian.** Jest menguji validasi form dan ApiService (login, header Bearer, penanganan error, pemetaan data kelompok lain, submit kuis).
+**Sertifikat.** Setelah progres 100%, siswa menekan Unduh sertifikat. Aplikasi mengambil data dari server, menyusun halaman A4 dengan nama siswa di tengah (di atas template mentor bila ada, atau template bawaan), lalu membuka dialog cetak sistem untuk disimpan sebagai PDF.
+
+**Pengujian.** Jest menguji validasi form (login, daftar, kelas, materi, kuis, profil), penyusunan sertifikat, dan ApiService (login, header Bearer, penanganan error, pemetaan data kelompok lain, submit kuis, diskusi, sertifikat).

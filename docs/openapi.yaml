@@ -114,6 +114,9 @@ components:
         description: *id001
         category: *id001
         mentor: *id001
+        certificate_template:
+          type: string
+          description: Nama berkas gambar template sertifikat (opsional). Diunduh dari /files/classes/{id}/{nama}.
     ClassInput:
       type: object
       required:
@@ -213,6 +216,9 @@ components:
           type: array
           items: *id001
         progress: *id004
+        completion_rewarded:
+          type: boolean
+          description: Penanda bonus poin mentor sudah diberikan
     EnrollmentInput:
       type: object
       required:
@@ -357,6 +363,7 @@ paths:
       - classes
       summary: Daftar classes
       description: Hanya mentor (role=mentor) yang boleh membuat; hanya mentor pemilik yang boleh mengubah/menghapus.
+        Mentor pemilik dapat mengunggah gambar template sertifikat lewat PATCH multipart pada field certificate_template.
       security: &id007
       - ApiKey: []
       - BearerAuth: []
@@ -412,6 +419,7 @@ paths:
       - classes
       summary: Buat Class
       description: Hanya mentor (role=mentor) yang boleh membuat; hanya mentor pemilik yang boleh mengubah/menghapus.
+        Mentor pemilik dapat mengunggah gambar template sertifikat lewat PATCH multipart pada field certificate_template.
       security: *id006
       requestBody:
         required: true
@@ -1053,4 +1061,35 @@ paths:
         '401': *id005
         '403':
           description: Bukan mentor pemilik kelas
+        '404': *id009
+  /files/classes/{id}/{filename}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    - name: filename
+      in: path
+      required: true
+      schema:
+        type: string
+    get:
+      tags:
+      - classes
+      summary: Unduh gambar template sertifikat kelas
+      description: Terbuka tanpa kunci (hanya GET).
+      security: []
+      responses:
+        '200':
+          description: Berkas gambar
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
         '404': *id009
